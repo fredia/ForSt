@@ -112,8 +112,6 @@ LIB_SOURCES =                                                   \
   env/mock_env.cc                                               \
   env/unique_id_gen.cc                                          \
   env/flink/env_flink.cc										\
-  env/flink/jvm_util.cc											\
-  env/flink/jni_helper.cc										\
   file/delete_scheduler.cc                                      \
   file/file_prefetch_buffer.cc                                  \
   file/file_util.cc                                             \
@@ -641,6 +639,8 @@ MICROBENCH_SOURCES =                                          \
   microbench/db_basic_bench.cc                                  \
 
 JNI_NATIVE_SOURCES =                                          \
+  env/flink/jvm_util.cc										  \
+  env/flink/jni_helper.cc									  \
   java/rocksjni/backupenginejni.cc                            \
   java/rocksjni/backup_engine_options.cc                      \
   java/rocksjni/checkpoint.cc                                 \
