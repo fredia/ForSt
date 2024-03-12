@@ -32,6 +32,18 @@ jobs:
       - uses: "./.github/actions/install-gflags"
       - run: make V=1 J=8 -j8 check
       - uses: "./.github/actions/post-steps"
+  build-linux-cmake-with-folly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4.1.0
+      - uses: "./.github/actions/pre-steps"
+      - uses: "./.github/actions/install-gflags"
+      - uses: "./.github/actions/setup-folly"
+      - uses: "./.github/actions/build-folly"
+      - uses: actions/checkout@v4.1.0
+      - run: "(mkdir build && cd build && cmake -DUSE_FOLLY=1 -DWITH_GFLAGS=1 -DROCKSDB_BUILD_SHARED=0 .. && make V=1 -j8 && ctest -j8)"
+      - uses: "./.github/actions/post-steps"
   # ======================== Linux No Test Runs ======================= #
   build-linux-release:
     runs-on: ubuntu-latest
@@ -105,3 +117,91 @@ jobs:
       - name: Build RocksDBJava Static Library
         run: scl enable devtoolset-7 'make V=1 J=8 -j8 rocksdbjavastatic'
     # NOTE: post-steps skipped because of compatibility issues with docker image
+
+  # ========================= MacOS build only ======================== #
+  build-macos:
+    runs-on: macos-13
+    timeout-minutes: 120
+    env:
+      ROCKSDB_DISABLE_JEMALLOC: 1
+    steps:
+      - uses: actions/checkout@v4.1.0
+      - uses: maxim-lobanov/setup-xcode@v1.6.0
+        with:
+          xcode-version: 14.3.1
+      - uses: "./.github/actions/increase-max-open-files-on-macos"
+      - uses: "./.github/actions/install-gflags-on-macos"
+      - uses: "./.github/actions/pre-steps-macos"
+      - name: Build
+        run: ulimit -S -n `ulimit -H -n` && make V=1 J=16 -j16 all
+      - uses: "./.github/actions/post-steps"
+  # ========================= MacOS with Tests ======================== #
+  build-macos-cmake:
+    runs-on: macos-13
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        run_even_tests: [true]
+    steps:
+      - uses: actions/checkout@v4.1.0
+      - uses: maxim-lobanov/setup-xcode@v1.6.0
+        with:
+          xcode-version: 14.3.1
+      - uses: "./.github/actions/increase-max-open-files-on-macos"
+      - uses: "./.github/actions/install-gflags-on-macos"
+      - uses: "./.github/actions/pre-steps-macos"
+      - name: cmake generate project file
+        run: ulimit -S -n `ulimit -H -n` && mkdir build && cd build && cmake -DWITH_GFLAGS=1 ..
+      - name: Build tests
+        run: cd build && make V=1 -j16
+      - name: Run even tests
+        run: ulimit -S -n `ulimit -H -n` && cd build && ctest -j16 -I 0,,2
+        if: ${{ matrix.run_even_tests }}
+      - name: Run odd tests
+        run: ulimit -S -n `ulimit -H -n` && cd build && ctest -j16 -I 1,,2
+        if: ${{ ! matrix.run_even_tests  }}
+      - uses: "./.github/actions/post-steps"
+  # ========================= MacOS with java ======================== #
+  build-macos-java:
+    runs-on: macos-13
+    env:
+      JAVA_HOME: "/Library/Java/JavaVirtualMachines/liberica-jdk-8.jdk/Contents/Home"
+      ROCKSDB_DISABLE_JEMALLOC: 1
+    steps:
+      - uses: actions/checkout@v4.1.0
+      - uses: maxim-lobanov/setup-xcode@v1.6.0
+        with:
+          xcode-version: 14.3.1
+      - uses: "./.github/actions/increase-max-open-files-on-macos"
+      - uses: "./.github/actions/install-gflags-on-macos"
+      - uses: "./.github/actions/install-jdk8-on-macos"
+      - uses: "./.github/actions/pre-steps-macos"
+      - name: Set Java Environment
+        run: |-
+          echo "JAVA_HOME=${JAVA_HOME}"
+          which java && java -version
+          which javac && javac -version
+      - name: Test RocksDBJava
+        run: make V=1 J=16 -j16 jtest
+      - uses: "./.github/actions/post-steps"
+  build-macos-java-static:
+    runs-on: macos-13
+    env:
+      JAVA_HOME: "/Library/Java/JavaVirtualMachines/liberica-jdk-8.jdk/Contents/Home"
+    steps:
+      - uses: actions/checkout@v4.1.0
+      - uses: maxim-lobanov/setup-xcode@v1.6.0
+        with:
+          xcode-version: 14.3.1
+      - uses: "./.github/actions/increase-max-open-files-on-macos"
+      - uses: "./.github/actions/install-gflags-on-macos"
+      - uses: "./.github/actions/install-jdk8-on-macos"
+      - uses: "./.github/actions/pre-steps-macos"
+      - name: Set Java Environment
+        run: |-
+          echo "JAVA_HOME=${JAVA_HOME}"
+          which java && java -version
+          which javac && javac -version
+      - name: Build RocksDBJava x86 and ARM Static Libraries
+        run: make V=1 J=16 -j16 rocksdbjavastaticosx
+      - uses: "./.github/actions/post-steps"
