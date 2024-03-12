@@ -108,6 +108,8 @@ LIB_SOURCES =                                                   \
   env/fs_posix.cc                                               \
   env/fs_remap.cc                                               \
   env/file_system_tracer.cc                                     \
+  env/flink/jvm_util.cc										    \
+  env/flink/jni_helper.cc									    \
   env/io_posix.cc                                               \
   env/mock_env.cc                                               \
   env/unique_id_gen.cc                                          \
@@ -639,8 +641,6 @@ MICROBENCH_SOURCES =                                          \
   microbench/db_basic_bench.cc                                  \
 
 JNI_NATIVE_SOURCES =                                          \
-  env/flink/jvm_util.cc										  \
-  env/flink/jni_helper.cc									  \
   java/rocksjni/backupenginejni.cc                            \
   java/rocksjni/backup_engine_options.cc                      \
   java/rocksjni/checkpoint.cc                                 \
