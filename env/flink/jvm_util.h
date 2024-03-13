@@ -23,7 +23,7 @@
 #include <cstddef>
 #include <string>
 
-#include <jni.h>
+#include "jni.h"
 #include "rocksdb/env.h"
 
 namespace ROCKSDB_NAMESPACE {
