@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_forstdb_FlinkEnv
  * Method:    createFlinkEnv
- * Signature: (Ljava/lang/String;)J
+ * Signature: (Ljava/lang/String;Ljava/lang/Object;)J
  */
 JNIEXPORT jlong JNICALL Java_org_forstdb_FlinkEnv_createFlinkEnv
-  (JNIEnv *, jclass, jstring);
+  (JNIEnv *, jclass, jstring, jobject);
 
 /*
  * Class:     org_forstdb_FlinkEnv
