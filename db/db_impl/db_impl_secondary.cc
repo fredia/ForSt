@@ -15,6 +15,7 @@
 #include "rocksdb/configurable.h"
 #include "util/cast_util.h"
 #include "util/write_batch_util.h"
+#include <iostream>
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -756,6 +757,7 @@ Status DB::OpenAsSecondary(
     const std::string& secondary_path,
     const std::vector<ColumnFamilyDescriptor>& column_families,
     std::vector<ColumnFamilyHandle*>* handles, DB** dbptr) {
+  //std::cout << "OpenAsSecondary: 1" << std::endl;
   *dbptr = nullptr;
 
   DBOptions tmp_opts(db_options);
@@ -767,6 +769,8 @@ Status DB::OpenAsSecondary(
       return s;
     }
   }
+  
+  //std::cout << "OpenAsSecondary: 2" << std::endl;
 
   assert(tmp_opts.info_log != nullptr);
   if (db_options.max_open_files != -1) {
@@ -788,6 +792,8 @@ Status DB::OpenAsSecondary(
            "TryCatchUpWithPrimary().";
     ROCKS_LOG_WARN(tmp_opts.info_log, "%s", oss.str().c_str());
   }
+  
+  //std::cout << "OpenAsSecondary: 3" << std::endl;
 
   handles->clear();
   DBImplSecondary* impl = new DBImplSecondary(tmp_opts, dbname, secondary_path);
@@ -801,6 +807,8 @@ Status DB::OpenAsSecondary(
 
   impl->mutex_.Lock();
   s = impl->Recover(column_families, true, false, false);
+  
+  //std::cout << "OpenAsSecondary: 4" << std::endl;
   if (s.ok()) {
     for (auto cf : column_families) {
       auto cfd =
@@ -811,6 +819,9 @@ Status DB::OpenAsSecondary(
       }
       handles->push_back(new ColumnFamilyHandleImpl(cfd, impl, &impl->mutex_));
     }
+  } else {
+    
+    //std::cout << "OpenAsSecondary: " << s.ToString() << std::endl;
   }
   SuperVersionContext sv_context(true /* create_superversion */);
   if (s.ok()) {
@@ -840,15 +851,18 @@ Status DB::OpenAsSecondary(
 Status DBImplSecondary::CompactWithoutInstallation(
     const OpenAndCompactOptions& options, ColumnFamilyHandle* cfh,
     const CompactionServiceInput& input, CompactionServiceResult* result) {
+  //std::cout << "CompactWithoutInstallation 1: " << std::endl;
   if (options.canceled && options.canceled->load(std::memory_order_acquire)) {
     return Status::Incomplete(Status::SubCode::kManualCompactionPaused);
   }
+  //std::cout << "CompactWithoutInstallation 2: " << std::endl;
   InstrumentedMutexLock l(&mutex_);
   auto cfd = static_cast_with_check<ColumnFamilyHandleImpl>(cfh)->cfd();
   if (!cfd) {
     return Status::InvalidArgument("Cannot find column family" +
                                    cfh->GetName());
   }
+  //std::cout << "CompactWithoutInstallation 3: " << std::endl;
 
   std::unordered_set<uint64_t> input_set;
   for (const auto& file_name : input.input_files) {
@@ -872,11 +886,13 @@ Status DBImplSecondary::CompactWithoutInstallation(
       vstorage->base_level(), cf_options.level_compaction_dynamic_level_bytes);
 
   std::vector<CompactionInputFiles> input_files;
+  //std::cout << "CompactWithoutInstallation 4: " << std::endl;
   Status s = cfd->compaction_picker()->GetCompactionInputsFromFileNumbers(
       &input_files, &input_set, vstorage, comp_options);
   if (!s.ok()) {
     return s;
   }
+  //std::cout << "CompactWithoutInstallation 5: " << std::endl;
 
   std::unique_ptr<Compaction> c;
   assert(cfd->compaction_picker());
@@ -884,15 +900,18 @@ Status DBImplSecondary::CompactWithoutInstallation(
       comp_options, input_files, input.output_level, vstorage,
       *mutable_cf_options, mutable_db_options_, 0));
   assert(c != nullptr);
+  //std::cout << "CompactWithoutInstallation 6: " << std::endl;
 
   c->FinalizeInputInfo(version);
 
   // Create output directory if it's not existed yet
   std::unique_ptr<FSDirectory> output_dir;
+  //std::cout << "CompactWithoutInstallation 7: " << std::endl;
   s = CreateAndNewDirectory(fs_.get(), secondary_path_, &output_dir);
   if (!s.ok()) {
     return s;
   }
+  //std::cout << "CompactWithoutInstallation 8: " << std::endl;
 
   LogBuffer log_buffer(InfoLogLevel::INFO_LEVEL,
                        immutable_db_options_.info_log.get());
@@ -913,10 +932,15 @@ Status DBImplSecondary::CompactWithoutInstallation(
       options.canceled ? *options.canceled : kManualCompactionCanceledFalse_,
       input.db_id, db_session_id_, secondary_path_, input, result);
 
+    //std::cout << "CompactWithoutInstallation 8.1: " << std::endl;
   mutex_.Unlock();
+  //std::cout << "CompactWithoutInstallation 8.2: " << std::endl;
   s = compaction_job.Run();
+  //std::cout << "CompactWithoutInstallation 8.3: " << std::endl;
   mutex_.Lock();
+  //std::cout << "CompactWithoutInstallation 8.4: " << std::endl;
 
+  //std::cout << "CompactWithoutInstallation 9: " << std::endl;
   // clean up
   compaction_job.io_status().PermitUncheckedError();
   compaction_job.CleanupCompaction();
@@ -926,6 +950,7 @@ Status DBImplSecondary::CompactWithoutInstallation(
   TEST_SYNC_POINT_CALLBACK("DBImplSecondary::CompactWithoutInstallation::End",
                            &s);
   result->status = s;
+  //std::cout << "CompactWithoutInstallation 10: " << std::endl;
   return s;
 }
 
@@ -934,14 +959,18 @@ Status DB::OpenAndCompact(
     const std::string& output_directory, const std::string& input,
     std::string* output,
     const CompactionServiceOptionsOverride& override_options) {
+  //std::cout << "OpenAndCompact 1: " << std::endl;
   if (options.canceled && options.canceled->load(std::memory_order_acquire)) {
     return Status::Incomplete(Status::SubCode::kManualCompactionPaused);
   }
+  //std::cout << "OpenAndCompact 2: " << std::endl;
   CompactionServiceInput compaction_input;
   Status s = CompactionServiceInput::Read(input, &compaction_input);
   if (!s.ok()) {
     return s;
   }
+
+  //std::cout << "OpenAndCompact 3: " << std::endl;
 
   compaction_input.db_options.max_open_files = -1;
   compaction_input.db_options.compaction_service = nullptr;
@@ -970,6 +999,8 @@ Status DB::OpenAndCompact(
       override_options.table_properties_collector_factories;
   compaction_input.db_options.listeners = override_options.listeners;
 
+
+  //std::cout << "OpenAndCompact 4: " << std::endl;
   std::vector<ColumnFamilyDescriptor> column_families;
   column_families.push_back(compaction_input.column_family);
   // TODO: we have to open default CF, because of an implementation limitation,
@@ -980,21 +1011,30 @@ Status DB::OpenAndCompact(
                                  compaction_input.column_family.options);
   }
 
+  //std::cout << "OpenAndCompact 5: " << std::endl;
+
   DB* db;
   std::vector<ColumnFamilyHandle*> handles;
 
   s = DB::OpenAsSecondary(compaction_input.db_options, name, output_directory,
                           column_families, &handles, &db);
+
+  //std::cout << "OpenAndCompact 6: " << std::endl;
   if (!s.ok()) {
+    //std::cout << "OpenAndCompact 6: " << s.ToString() << std::endl;
     return s;
   }
 
+
+  //std::cout << "OpenAndCompact 7: " << std::endl;
   CompactionServiceResult compaction_result;
   DBImplSecondary* db_secondary = static_cast_with_check<DBImplSecondary>(db);
   assert(handles.size() > 0);
   s = db_secondary->CompactWithoutInstallation(
       options, handles[0], compaction_input, &compaction_result);
 
+
+  //std::cout << "OpenAndCompact 8: " << std::endl;
   Status serialization_status = compaction_result.Write(output);
 
   for (auto& handle : handles) {
@@ -1006,6 +1046,8 @@ Status DB::OpenAndCompact(
   } else {
     serialization_status.PermitUncheckedError();
   }
+
+  //std::cout << "OpenAndCompact 9: " << s.ToString() << std::endl;
   return s;
 }
 

@@ -11,6 +11,7 @@
 #include "db/compaction/compaction_outputs.h"
 
 #include "db/builder.h"
+#include <iostream>
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -355,6 +356,7 @@ Status CompactionOutputs::AddToOutput(
     const CompactionIterator& c_iter,
     const CompactionFileOpenFunc& open_file_func,
     const CompactionFileCloseFunc& close_file_func) {
+//  std::cout << "AddToOutput" << std::endl;
   Status s;
   bool is_range_del = c_iter.IsDeleteRangeSentinelKey();
   if (is_range_del && compaction_->bottommost_level()) {
@@ -363,10 +365,12 @@ Status CompactionOutputs::AddToOutput(
     // 2. range tombstone may be dropped at bottommost level.
     return s;
   }
+//  std::cout << "AddToOutput:1" << std::endl;
   const Slice& key = c_iter.key();
   if (ShouldStopBefore(c_iter) && HasBuilder()) {
     s = close_file_func(*this, c_iter.InputStatus(), key);
     if (!s.ok()) {
+//      std::cout << "AddToOutput:s, " << s.ToString() << std::endl;
       return s;
     }
     // reset grandparent information
@@ -381,14 +385,17 @@ Status CompactionOutputs::AddToOutput(
       range_tombstone_lower_bound_.Clear();
     }
   }
+//  std::cout << "AddToOutput:2" << std::endl;
 
   // Open output file if necessary
   if (!HasBuilder()) {
     s = open_file_func(*this);
     if (!s.ok()) {
+//      std::cout << "AddToOutput:s, " << s.ToString() << std::endl;
       return s;
     }
   }
+//  std::cout << "AddToOutput:3" << std::endl;
 
   // c_iter may emit range deletion keys, so update `last_key_for_partitioner_`
   // here before returning below when `is_range_del` is true
@@ -398,31 +405,41 @@ Status CompactionOutputs::AddToOutput(
   }
 
   if (UNLIKELY(is_range_del)) {
+//    std::cout << "AddToOutput:s, " << s.ToString() << std::endl;
     return s;
   }
+//  std::cout << "AddToOutput:4" << std::endl;
 
   assert(builder_ != nullptr);
   const Slice& value = c_iter.value();
   s = current_output().validator.Add(key, value);
   if (!s.ok()) {
+//    std::cout << "AddToOutput:s, " << s.ToString() << std::endl;
     return s;
   }
+//  std::cout << "AddToOutput:5" << std::endl;
   builder_->Add(key, value);
+//  std::cout << "AddToOutput:5.1" << std::endl;
 
   stats_.num_output_records++;
   current_output_file_size_ = builder_->EstimatedFileSize();
+//  std::cout << "AddToOutput:5.2" << std::endl;
 
   if (blob_garbage_meter_) {
     s = blob_garbage_meter_->ProcessOutFlow(key, value);
   }
+//  std::cout << "AddToOutput:5.3" << std::endl;
 
   if (!s.ok()) {
+//    std::cout << "AddToOutput:s, " << s.ToString() << std::endl;
     return s;
   }
+//  std::cout << "AddToOutput:6" << std::endl;
 
   const ParsedInternalKey& ikey = c_iter.ikey();
   s = current_output().meta.UpdateBoundaries(key, value, ikey.sequence,
                                              ikey.type);
+//  std::cout << "AddToOutput:7" << s.ToString() << std::endl;
 
   return s;
 }

@@ -43,6 +43,8 @@ LIB_SOURCES =                                                   \
   db/compaction/compaction_outputs.cc                           \
   db/compaction/sst_partitioner.cc                              \
   db/compaction/subcompaction_state.cc                          \
+  db/compaction/forst_compaction_service.cc						\
+  db/compaction/forst_compaction_service_jni.cc					\
   db/convenience.cc                                             \
   db/db_filesnapshot.cc                                         \
   db/db_impl/compacted_db_impl.cc                               \

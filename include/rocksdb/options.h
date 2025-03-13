@@ -443,7 +443,8 @@ class CompactionService : public Customizable {
   // information the user might want to know, which includes `job_id`.
   virtual CompactionServiceJobStatus StartV2(
       const CompactionServiceJobInfo& /*info*/,
-      const std::string& /*compaction_service_input*/) {
+      const std::string& /*compaction_service_input*/,
+      const std::vector<std::string>& /*compaction_service_input_files*/) {
     return CompactionServiceJobStatus::kUseLocal;
   }
 

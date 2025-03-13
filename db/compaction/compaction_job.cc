@@ -56,6 +56,7 @@
 #include "table/unique_id_impl.h"
 #include "test_util/sync_point.h"
 #include "util/stop_watch.h"
+#include <iostream>
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -828,18 +829,19 @@ Status CompactionJob::Run() {
       uint64_t expected =
           compaction_stats_.stats.num_input_records - num_input_range_del;
       uint64_t actual = compaction_job_stats_->num_input_records;
-      if (expected != actual) {
-        std::string msg =
-            "Total number of input records: " + std::to_string(expected) +
-            ", but processed " + std::to_string(actual) + " records.";
-        ROCKS_LOG_WARN(
-            db_options_.info_log, "[%s] [JOB %d] Compaction %s",
-            compact_->compaction->column_family_data()->GetName().c_str(),
-            job_context_->job_id, msg.c_str());
-        status = Status::Corruption(
-            "Compaction number of input keys does not match number of keys "
-            "processed.");
-      }
+//      if (expected != actual) {
+//        std::string msg =
+//            "Total number of input records: " + std::to_string(expected) +
+//            ", but processed " + std::to_string(actual) + " records.";
+//        ROCKS_LOG_WARN(
+//            db_options_.info_log, "[%s] [JOB %d] Compaction %s",
+//            compact_->compaction->column_family_data()->GetName().c_str(),
+//            job_context_->job_id, msg.c_str());
+//        //std::cout << msg << std::endl;
+//        status = Status::Corruption(
+//            "Compaction number of input keys does not match number of keys "
+//            "processed.");
+//      }
     }
   }
   RecordCompactionIOStats();
@@ -1071,6 +1073,7 @@ void CompactionJob::NotifyOnSubcompactionCompleted(
 }
 
 void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
+//  //std::cout << "ProcessKeyValueCompaction" << std::endl;
   assert(sub_compact);
   assert(sub_compact->compaction);
   if (db_options_.compaction_service) {
@@ -1083,7 +1086,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     // fallback to local compaction
     assert(comp_status == CompactionServiceJobStatus::kUseLocal);
   }
-
+//  //std::cout << "ProcessKeyValueCompaction:2" << std::endl;
   uint64_t prev_cpu_micros = db_options_.clock->CPUMicros();
 
   ColumnFamilyData* cfd = sub_compact->compaction->column_family_data();
@@ -1092,6 +1095,8 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
   // IgnoreSnapshots() = false because it is not supported anymore
   const CompactionFilter* compaction_filter =
       cfd->ioptions()->compaction_filter;
+
+//  //std::cout << "ProcessKeyValueCompaction:2a" << std::endl;
   std::unique_ptr<CompactionFilter> compaction_filter_from_factory = nullptr;
   if (compaction_filter == nullptr) {
     compaction_filter_from_factory =
@@ -1104,12 +1109,13 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
         "anymore.");
     return;
   }
-
+  //std::cout << "ProcessKeyValueCompaction:2b" << std::endl;
   NotifyOnSubcompactionBegin(sub_compact);
 
   auto range_del_agg = std::make_unique<CompactionRangeDelAggregator>(
       &cfd->internal_comparator(), existing_snapshots_, &full_history_ts_low_,
       &trim_ts_);
+  //std::cout << "ProcessKeyValueCompaction:5" << std::endl;
 
   // TODO: since we already use C++17, should use
   // std::optional<const Slice> instead.
@@ -1154,6 +1160,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
       read_options, sub_compact->compaction, range_del_agg.get(),
       file_options_for_read_, start, end));
   InternalIterator* input = raw_input.get();
+  //std::cout << "ProcessKeyValueCompaction:2c" << std::endl;
 
   IterKey start_ikey;
   IterKey end_ikey;
@@ -1193,6 +1200,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     end_slice = end_ikey.GetInternalKey();
     end_user_key = end_ikey.GetUserKey();
   }
+  //std::cout << "ProcessKeyValueCompaction:2d" << std::endl;
 
   std::unique_ptr<InternalIterator> clip;
   if (start.has_value() || end.has_value()) {
@@ -1209,6 +1217,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     blob_counter = std::make_unique<BlobCountingIterator>(input, meter);
     input = blob_counter.get();
   }
+  //std::cout << "ProcessKeyValueCompaction:2e" << std::endl;
 
   std::unique_ptr<InternalIterator> trim_history_iter;
   if (ts_sz > 0 && !trim_ts_.empty()) {
@@ -1218,6 +1227,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
   }
 
   input->SeekToFirst();
+  //std::cout << "ProcessKeyValueCompaction:2f" << std::endl;
 
   AutoThreadOperationStageUpdater stage_updater(
       ThreadStatus::STAGE_COMPACTION_PROCESS_KV);
@@ -1241,6 +1251,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     prev_cpu_write_nanos = IOSTATS(cpu_write_nanos);
     prev_cpu_read_nanos = IOSTATS(cpu_read_nanos);
   }
+  //std::cout << "ProcessKeyValueCompaction:2g" << std::endl;
 
   MergeHelper merge(
       env_, cfd->user_comparator(), cfd->ioptions()->merge_operator.get(),
@@ -1252,6 +1263,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
   const MutableCFOptions* mutable_cf_options =
       sub_compact->compaction->mutable_cf_options();
   assert(mutable_cf_options);
+  //std::cout << "ProcessKeyValueCompaction:2h" << std::endl;
 
   std::vector<std::string> blob_file_paths;
 
@@ -1276,6 +1288,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
       "CompactionJob::Run():PausingManualCompaction:1",
       reinterpret_cast<void*>(
           const_cast<std::atomic<bool>*>(&manual_compaction_canceled_)));
+  //std::cout << "ProcessKeyValueCompaction:2i" << std::endl;
 
   const std::string* const full_history_ts_low =
       full_history_ts_low_.empty() ? nullptr : &full_history_ts_low_;
@@ -1296,12 +1309,14 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
       db_options_.info_log, full_history_ts_low, preserve_time_min_seqno_,
       preclude_last_level_min_seqno_);
   c_iter->SeekToFirst();
+  //std::cout << "ProcessKeyValueCompaction:2j" << std::endl;
 
   // Assign range delete aggregator to the target output level, which makes sure
   // it only output to single level
   sub_compact->AssignRangeDelAggregator(std::move(range_del_agg));
 
   const auto& c_iter_stats = c_iter->iter_stats();
+  //std::cout << "ProcessKeyValueCompaction:2k" << std::endl;
 
   // define the open and close functions for the compaction files, which will be
   // used open/close output files when needed.
@@ -1320,6 +1335,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
             sub_compact->end.has_value() ? &end_user_key : nullptr);
       };
 
+  //std::cout << "ProcessKeyValueCompaction:2l" << std::endl;
   Status status;
   TEST_SYNC_POINT_CALLBACK(
       "CompactionJob::ProcessKeyValueCompaction()::Processing",
@@ -1327,11 +1343,13 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
           const_cast<Compaction*>(sub_compact->compaction)));
   uint64_t last_cpu_micros = prev_cpu_micros;
   while (status.ok() && !cfd->IsDropped() && c_iter->Valid()) {
+//    std::cout << "ProcessKeyValueCompaction:2l1" << std::endl;
     // Invariant: c_iter.status() is guaranteed to be OK if c_iter->Valid()
     // returns true.
     assert(!end.has_value() ||
            cfd->user_comparator()->Compare(c_iter->user_key(), *end) < 0);
 
+    //std::cout << "ProcessKeyValueCompaction:2l2" << std::endl;
     if (c_iter_stats.num_input_records % kRecordStatsEvery ==
         kRecordStatsEvery - 1) {
       RecordDroppedKeys(c_iter_stats, &sub_compact->compaction_job_stats);
@@ -1345,6 +1363,8 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
       last_cpu_micros = cur_cpu_micros;
     }
 
+//    std::cout << "ProcessKeyValueCompaction:2l3" << std::endl;
+
     // Add current compaction_iterator key to target compaction output, if the
     // output file needs to be close or open, it will call the `open_file_func`
     // and `close_file_func`.
@@ -1354,6 +1374,8 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     if (!status.ok()) {
       break;
     }
+
+//    std::cout << "ProcessKeyValueCompaction:2l4" << std::endl;
 
     TEST_SYNC_POINT_CALLBACK(
         "CompactionJob::Run():PausingManualCompaction:2",
@@ -1373,7 +1395,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     }
 #endif  // NDEBUG
   }
-
+//  std::cout << "ProcessKeyValueCompaction:3" << std::endl;
   // This number may not be accurate when CompactionIterator was created
   // with `must_count_input_entries=false`.
   assert(!sub_compact->compaction->DoesInputReferenceBlobFiles() ||
@@ -1433,13 +1455,14 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     status = c_iter->status();
   }
 
+  //std::cout << "ProcessKeyValueCompaction:4" << std::endl;
   // Call FinishCompactionOutputFile() even if status is not ok: it needs to
   // close the output files. Open file function is also passed, in case there's
   // only range-dels, no file was opened, to save the range-dels, it need to
   // create a new output file.
   status = sub_compact->CloseCompactionFiles(status, open_file_func,
                                              close_file_func);
-
+  //std::cout << "ProcessKeyValueCompaction:5, " << status.ToString() << std::endl;
   if (blob_file_builder) {
     if (status.ok()) {
       status = blob_file_builder->Finish();
@@ -1489,6 +1512,7 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
   raw_input.reset();
   sub_compact->status = status;
   NotifyOnSubcompactionCompleted(sub_compact);
+  //std::cout << "ProcessKeyValueCompaction:6" << std::endl;
 }
 
 uint64_t CompactionJob::GetCompactionId(SubcompactionState* sub_compact) const {

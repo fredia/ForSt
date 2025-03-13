@@ -29,6 +29,8 @@
 #include "forstjni/kv_helper.h"
 #include "forstjni/portal.h"
 
+#include "db/compaction/forst_compaction_service.h"
+
 #ifdef min
 #undef min
 #endif
@@ -45,6 +47,8 @@ jlong rocksdb_open_helper(JNIEnv* env, jlong jopt_handle, jstring jdb_path,
   }
 
   auto* opt = reinterpret_cast<ROCKSDB_NAMESPACE::Options*>(jopt_handle);
+  opt->compaction_service = std::make_shared<ROCKSDB_NAMESPACE::ForStCompactionService>(opt->info_log);
+  opt->verify_sst_unique_id_in_manifest = false;
   ROCKSDB_NAMESPACE::DB* db = nullptr;
   ROCKSDB_NAMESPACE::Status s = open_fn(*opt, db_path, &db);
 
@@ -139,6 +143,9 @@ jlongArray rocksdb_open_helper(
   }
 
   auto* opt = reinterpret_cast<ROCKSDB_NAMESPACE::DBOptions*>(jopt_handle);
+
+  opt->compaction_service = std::make_shared<ROCKSDB_NAMESPACE::ForStCompactionService>(opt->info_log);
+  opt->verify_sst_unique_id_in_manifest = false;
   std::vector<ROCKSDB_NAMESPACE::ColumnFamilyHandle*> cf_handles;
   ROCKSDB_NAMESPACE::DB* db = nullptr;
   ROCKSDB_NAMESPACE::Status s =

@@ -33,7 +33,8 @@ class MyTestCompactionService : public CompactionService {
 
   CompactionServiceJobStatus StartV2(
       const CompactionServiceJobInfo& info,
-      const std::string& compaction_service_input) override {
+      const std::string& compaction_service_input,
+      const std::vector<std::string>&) override {
     InstrumentedMutexLock l(&mutex_);
     start_info_ = info;
     assert(info.db_name == db_path_);

@@ -53,6 +53,7 @@
 #include "util/stop_watch.h"
 #include "util/string_util.h"
 #include "util/work_queue.h"
+#include <iostream>
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -984,12 +985,15 @@ BlockBasedTableBuilder::~BlockBasedTableBuilder() {
 }
 
 void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
+//  std::cout << "BlockBasedTableBuilder::Add1" << std::endl;
   Rep* r = rep_;
   assert(rep_->state != Rep::State::kClosed);
   if (!ok()) {
     return;
   }
+//  std::cout << "BlockBasedTableBuilder::Add2" << std::endl;
   ValueType value_type = ExtractValueType(key);
+//  std::cout << "BlockBasedTableBuilder::Add3" << std::endl;
   if (IsValueType(value_type)) {
 #ifndef NDEBUG
     if (r->props.num_entries > r->props.num_range_deletions) {
@@ -997,11 +1001,15 @@ void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
     }
 #endif  // !NDEBUG
 
+//    std::cout << "BlockBasedTableBuilder::Add4" << std::endl;
     auto should_flush = r->flush_block_policy->Update(key, value);
     if (should_flush) {
+//      std::cout << "BlockBasedTableBuilder::Add5" << std::endl;
       assert(!r->data_block.empty());
       r->first_key_in_next_block = &key;
+//      std::cout << "BlockBasedTableBuilder::Add6" << std::endl;
       Flush();
+//      std::cout << "BlockBasedTableBuilder::Add7" << std::endl;
       if (r->state == Rep::State::kBuffered) {
         bool exceeds_buffer_limit =
             (r->buffer_limit != 0 && r->data_begin_offset > r->buffer_limit);
@@ -1022,6 +1030,7 @@ void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
           EnterUnbuffered();
         }
       }
+//      std::cout << "BlockBasedTableBuilder::Add7" << std::endl;
 
       // Add item to index block.
       // We do not emit the index entry for a block until we have seen the
@@ -1039,6 +1048,7 @@ void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
                                           r->pending_handle);
         }
       }
+//      std::cout << "BlockBasedTableBuilder::Add8" << std::endl;
     }
 
     // Note: PartitionedFilterBlockBuilder requires key being added to filter
@@ -1068,8 +1078,9 @@ void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
     NotifyCollectTableCollectorsOnAdd(key, value, r->get_offset(),
                                       r->table_properties_collectors,
                                       r->ioptions.logger);
-
+//    std::cout << "BlockBasedTableBuilder::Add9" << std::endl;
   } else if (value_type == kTypeRangeDeletion) {
+//    std::cout << "BlockBasedTableBuilder::Add10" << std::endl;
     // TODO(yuzhangyu): handle range deletion entries for UDT in memtable only.
     r->range_del_block.Add(key, value);
     // TODO offset passed in is not accurate for parallel compression case
@@ -1095,6 +1106,7 @@ void BlockBasedTableBuilder::Add(const Slice& key, const Slice& value) {
   } else if (value_type == kTypeMerge) {
     r->props.num_merge_operands++;
   }
+//  std::cout << "BlockBasedTableBuilder::Add11" << std::endl;
 }
 
 void BlockBasedTableBuilder::Flush() {

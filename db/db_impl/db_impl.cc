@@ -7,6 +7,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 #include "db/db_impl/db_impl.h"
+#include "db/compaction/forst_compaction_service.h"
 
 #include <stdint.h>
 #ifdef OS_SOLARIS
@@ -245,6 +246,17 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
                      &error_handler_, &event_logger_,
                      immutable_db_options_.listeners, dbname_),
       lock_wal_count_(0) {
+  if (options.compaction_service) {
+    ROCKS_LOG_INFO(immutable_db_options_.info_log,
+                   "Get compaction service option: %p", options.compaction_service.get());
+    auto* compaction_service =
+        reinterpret_cast<ForStCompactionService*>(options.compaction_service.get());
+    compaction_service
+        ->setLogger(immutable_db_options_.info_log);
+    compaction_service->setHostDB(this);
+    ForStCompactionService::db_shadow_.db_ = this;
+  }
+
   // !batch_per_trx_ implies seq_per_batch_ because it is only unset for
   // WriteUnprepared, which should use seq_per_batch_.
   assert(batch_per_txn_ || seq_per_batch_);

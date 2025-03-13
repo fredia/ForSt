@@ -50,6 +50,8 @@ cpp_library_wrapper(name="rocksdb_lib", srcs=[
         "db/compaction/compaction_state.cc",
         "db/compaction/sst_partitioner.cc",
         "db/compaction/subcompaction_state.cc",
+        "db/compaction/forst_compaction_service.cc",
+        "db/compaction/forst_compaction_service_jni.cc",
         "db/convenience.cc",
         "db/db_filesnapshot.cc",
         "db/db_impl/compacted_db_impl.cc",

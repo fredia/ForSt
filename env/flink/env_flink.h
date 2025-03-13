@@ -106,6 +106,10 @@ class FlinkFileSystem : public FileSystemWrapper {
                      std::shared_ptr<Logger>* result,
                      IODebugContext* dbg) override;
 
+  const std::string& getBasePath() const { return base_path_; }
+
+  jobject getFileSystemInstance() const { return file_system_instance_; }
+
  private:
   const std::string base_path_;
   JavaClassCache* class_cache_;

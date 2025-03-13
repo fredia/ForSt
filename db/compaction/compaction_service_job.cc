@@ -8,6 +8,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#include <iostream>
+
 #include "db/compaction/compaction_job.h"
 #include "db/compaction/compaction_state.h"
 #include "logging/logging.h"
@@ -75,7 +77,8 @@ CompactionJob::ProcessKeyValueCompactionWithCompactionService(
   CompactionServiceJobInfo info(dbname_, db_id_, db_session_id_,
                                 GetCompactionId(sub_compact), thread_pri_);
   CompactionServiceJobStatus compaction_status =
-      db_options_.compaction_service->StartV2(info, compaction_input_binary);
+      db_options_.compaction_service->StartV2(info, compaction_input_binary,
+                                              compaction_input.input_files);
   switch (compaction_status) {
     case CompactionServiceJobStatus::kSuccess:
       break;
@@ -167,7 +170,8 @@ CompactionJob::ProcessKeyValueCompactionWithCompactionService(
 
   for (const auto& file : compaction_result.output_files) {
     uint64_t file_num = versions_->NewFileNumber();
-    auto src_file = compaction_result.output_path + "/" + file.file_name;
+    auto src_file =
+        compaction_result.output_path + "/" + file.file_name + ".compaction";
     auto tgt_file = TableFileName(compaction->immutable_options()->cf_paths,
                                   file_num, compaction->output_path_id());
     s = fs_->RenameFile(src_file, tgt_file, IOOptions(), nullptr);
@@ -249,6 +253,7 @@ CompactionServiceCompactionJob::CompactionServiceCompactionJob(
       compaction_result_(compaction_service_result) {}
 
 Status CompactionServiceCompactionJob::Run() {
+  // std::cout << "CompactionServiceCompactionJob::Run" << std::endl;
   AutoThreadOperationStageUpdater stage_updater(
       ThreadStatus::STAGE_COMPACTION_RUN);
 
@@ -278,7 +283,9 @@ Status CompactionServiceCompactionJob::Run() {
   assert(compact_->sub_compact_states.size() == 1);
   SubcompactionState* sub_compact = compact_->sub_compact_states.data();
 
+  // std::cout << "CompactionServiceCompactionJob::Run2" << std::endl;
   ProcessKeyValueCompaction(sub_compact);
+  // std::cout << "CompactionServiceCompactionJob::Run3" << std::endl;
 
   compaction_stats_.stats.micros =
       db_options_.clock->NowMicros() - start_micros;
@@ -830,4 +837,3 @@ bool CompactionServiceInput::TEST_Equals(CompactionServiceInput* other,
 }
 #endif  // NDEBUG
 }  // namespace ROCKSDB_NAMESPACE
-
